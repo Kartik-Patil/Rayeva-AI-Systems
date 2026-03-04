@@ -654,6 +654,228 @@ pytest --cov=src tests/
 
 ---
 
+# Rayeva AI Systems - Prompt Engineering Documentation
+
+## Overview
+
+This document explains the prompt engineering strategies used across all AI modules in the Rayeva AI Systems platform. Understanding these strategies is crucial for maintaining consistency and optimizing AI performance.
+
+---
+
+## Core Principles
+
+### 1. **Structured System-User Prompts**
+
+Every AI interaction follows this pattern:
+```python
+system_prompt = """
+[ROLE DEFINITION]
+[CONTEXT PROVISION]
+[TASK DESCRIPTION]
+[CONSTRAINTS]
+[OUTPUT FORMAT]
+"""
+
+user_prompt = """
+[SPECIFIC INPUT DATA]
+[ADDITIONAL CONTEXT]
+[EXPLICIT OUTPUT REQUEST]
+"""
+```
+
+### 2. **JSON Schema Enforcement**
+
+All structured outputs use Pydantic models for validation:
+```python
+response = await ai_service.generate_structured_output(
+    system_prompt=system_prompt,
+    user_prompt=user_prompt,
+    schema=OutputModel  # Pydantic model
+)
+```
+
+---
+
+## Module 1: Category & Tag Generator
+
+### System Prompt Breakdown
+
+```python
+system_prompt = """
+You are an expert in sustainable product categorization and e-commerce SEO.
+# ↑ ROLE DEFINITION: Establishes AI expertise and perspective
+
+Your task is to analyze product information and provide structured categorization.
+# ↑ TASK DESCRIPTION: Clear objective
+
+AVAILABLE PRIMARY CATEGORIES:
+Kitchen & Dining, Personal Care, Home & Living, ...
+# ↑ CONTEXT PROVISION: Constrains output to valid options
+
+AVAILABLE SUSTAINABILITY FILTERS:
+plastic-free, compostable, biodegradable, vegan, ...
+# ↑ CONTEXT PROVISION: Predefined attribute list
+
+INSTRUCTIONS:
+1. Choose the MOST appropriate primary category from the list above
+2. Suggest a relevant sub-category (can be creative if needed)
+3. Generate 5-10 SEO-optimized tags (mix of: product type, material, use case, sustainability)
+4. Identify applicable sustainability filters from the list above
+5. Assign a confidence score (0-1) based on description quality
+6. Provide brief reasoning for your choices
+# ↑ TASK BREAKDOWN: Step-by-step instructions
+
+IMPORTANT:
+- Only use categories from the predefined list
+- Tags should be lowercase, hyphenated phrases
+- Only assign sustainability filters you're confident about
+- If description is vague, reflect lower confidence
+# ↑ CONSTRAINTS: Hard rules to prevent invalid outputs
+"""
+```
+
+### User Prompt Construction
+
+```python
+user_prompt = f"""
+Product Name: {request.product_name}
+Description: {request.description}
+Additional Info: {request.additional_info or 'None'}
+# ↑ STRUCTURED INPUT: Clear data presentation
+
+Provide categorization in JSON format.
+# ↑ OUTPUT REQUEST: Explicit format specification
+"""
+```
+
+### Why This Works
+
+1. **Role Context**: "Expert in sustainable product categorization" primes the AI to think like a domain specialist
+2. **Constrained Choices**: Listing valid categories prevents hallucination
+3. **Step-by-Step Instructions**: Reduces ambiguity and improves consistency
+4. **Confidence Scoring**: Forces AI to self-assess, revealing uncertainty
+5. **Reasoning Field**: Provides transparency into AI decision-making
+
+### Temperature Setting
+- **0.7** (default): Balanced creativity for tag generation while maintaining categorization accuracy
+
+---
+
+## Module 2: B2B Proposal Generator
+
+### System Prompt Breakdown
+
+```python
+system_prompt = """
+You are an expert B2B sustainability consultant and proposal specialist.
+# ↑ ROLE DEFINITION: Dual expertise (business + sustainability)
+
+Your task is to create optimized product recommendations for clients based on their:
+- Budget constraints
+- Specific requirements
+- Sustainability priorities
+# ↑ TASK CONTEXT: Multi-criteria optimization
+
+GUIDELINES:
+1. Stay within budget (ideally 90-98% utilization)
+2. Prioritize products matching client's sustainability preferences
+3. Select appropriate quantities based on requirements
+4. Provide clear sustainability impact for each product
+5. Create a balanced mix addressing all client needs
+6. Justify your selections with reasoning
+# ↑ OPTIMIZATION GOALS: Clear success criteria
+
+OUTPUT REQUIREMENTS:
+- product_mix: Array of recommended products with quantities
+- total_cost: Sum of all product costs
+- impact_highlights: 3-5 key sustainability benefits
+- reasoning: Brief explanation of product selection strategy
+# ↑ OUTPUT STRUCTURE: Expected fields (later enforced by schema)
+"""
+```
+
+### User Prompt Construction
+
+```python
+user_prompt = f"""
+CLIENT: {request.client_name}
+BUDGET: ${request.budget_limit:,.2f}
+REQUIREMENTS: {request.requirements}
+SUSTAINABILITY PRIORITIES: {priorities_text}
+# ↑ CLIENT CONTEXT: Critical decision factors
+
+AVAILABLE PRODUCTS:
+- Recycled Paper Notebooks (ID: prod_001): $12.50/unit, Stock: 1000, Impact: 100% recycled content
+- Bamboo Pen Set (ID: prod_002): $8.00/unit, Stock: 500, Impact: Plastic-free alternative
+...
+# ↑ PRODUCT CATALOG: Limited to top 30 products (token optimization)
+
+Create an optimized product proposal that:
+1. Maximizes budget utilization (aim for 90-98%)
+2. Addresses client requirements
+3. Prioritizes requested sustainability attributes
+4. Includes realistic quantities based on requirements
+# ↑ REITERATED GOALS: Reinforces optimization criteria
+
+Provide response in JSON format with product_mix, total_cost, impact_highlights, and reasoning.
+# ↑ OUTPUT REQUEST: Explicit structure
+"""
+```
+
+### Why This Works
+
+1. **Budget Awareness**: AI explicitly considers financial constraints
+2. **Product Context**: Providing catalog with prices/stock enables realistic proposals
+3. **Multi-Objective Optimization**: Guidelines balance cost, sustainability, and client needs
+4. **Quantitative Targets**: "90-98% utilization" provides concrete goal
+5. **Reasoning Requirement**: Forces AI to explain trade-offs
+
+### Temperature Setting
+- **0.8**: Slightly higher for creative product combinations while maintaining budget constraints
+
+
+## Best Practices
+
+### DO ✅
+
+1. **Be Specific**: "Generate 5-10 tags" not "generate some tags"
+2. **Provide Context**: Give AI all information it needs
+3. **Constrain Outputs**: List valid options when applicable
+4. **Request Reasoning**: Ask AI to explain its choices
+5. **Set Temperature Appropriately**:
+   - Low (0.2-0.4): Classification, factual tasks
+   - Medium (0.5-0.7): General tasks
+   - High (0.8-1.0): Creative tasks
+6. **Validate Outputs**: Use Pydantic schemas
+7. **Log Everything**: Track prompts and responses for analysis
+
+### DON'T ❌
+
+1. **Don't Be Vague**: "Categorize this" (What output format?)
+2. **Don't Hallucinate Data**: Always provide real data from database
+3. **Don't Skip Constraints**: "Only use these categories" prevents errors
+4. **Don't Ignore Failures**: Implement retry logic and fallbacks
+5. **Don't Hardcode Prompts**: Use variables for flexibility
+6. **Don't Forget Character Limits**: Especially for WhatsApp (160 chars)
+7. **Don't Trust AI Blindly**: Always validate outputs
+
+---
+
+## Conclusion
+
+Effective prompt engineering is both an art and a science. Key takeaways:
+
+1. **Structure is Critical**: System + User prompts with clear roles
+2. **Constraints Prevent Errors**: List valid options explicitly
+3. **Ground in Facts**: Never let AI invent data
+4. **Validate Everything**: Use schemas and business logic
+5. **Monitor & Iterate**: Track performance and costs
+6. **Test Rigorously**: Unit tests, integration tests, A/B tests
+
+**Remember**: The best prompt is one that consistently produces valid, useful outputs at the lowest cost.
+
+
+
 ## 🔮 Future Enhancements
 
 1. **Real-time WebSocket Support**: For live proposal generation updates
@@ -671,4 +893,5 @@ pytest --cov=src tests/
 
 This is a demonstration project for Rayeva AI Systems assignment evaluation.
 #
+
 
