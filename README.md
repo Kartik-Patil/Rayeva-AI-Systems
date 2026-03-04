@@ -664,23 +664,11 @@ pytest --cov=src tests/
 6. **Caching Layer**: Redis for frequently requested categorizations
 7. **GraphQL API**: Alternative to REST for flexible frontend queries
 
----
-
-## 📞 Support & Contact
-
-For questions about this implementation, please contact:
-- **Developer**: AI Systems Intern Candidate
-- **Project**: Rayeva Sustainable Commerce Platform
-- **Date**: March 2026
 
 ---
 
 ## 📄 License
 
 This is a demonstration project for Rayeva AI Systems assignment evaluation.
+#
 
----
-
-**Built with ❤️ for Sustainable Commerce**
-#   R a y e v a - A I - S y s t e m s  
- 
